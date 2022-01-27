@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<title>JPYCの代わりにimxBトークンで支払うテスト</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+<script type="text/javascript">
+const RpcPolygon = "https://polygon-rpc.com/";
+const AddressContract = "0x8344AeD6233574801028c3c076A60233bfe1D60E";
+const AddressJpyc = "0x6AE7Dfc73E0dDE2aa99ac063DcF7e8A63265108c";
+const AddressImpermax = "0xDB36fA27166b011Be6a6aa17AAAf6B4117453274";
+function f1(){
+	let w = new Web3(RpcPolygon);
+	let abi = [
+		{
+			inputs : [
+				{
+					name : "amount",
+					type : "uint256"
+				}
+			],
+			name : "getJpycPriceInImpermax",
+			outputs : [
+				{
+					name : "",
+					type : "uint256"
+				}
+			],
+			type : "function"
+		}
+	];
+	let c = new w.eth.Contract(abi, AddressContract);
+	c.methods.getJpycPriceInImpermax(parseInt(document.getElementById("price").value) + "000000000000000000").call().then(function(x){
+		document.getElementById("output").innerText += parseInt(document.getElementById("price").value) + "円はimxBトークン" + x + "個\n";
+	});
+}
+function f2(){
+	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
+		let w = new Web3(window.ethereum);
+		w.eth.getAccounts().then(function(a){
+			let abi = [
+				{
+					inputs : [
+						{
+							name : "",
+							type : "address"
+						},
+						{
+							name : "",
+							type : "uint256"
+						}
+					],
+					name : "approve",
+					outputs : [
+						{
+							name : "",
+							type : "bool"
+						}
+					],
+					type : "function"
+				}
+			];
+			let c = new w.eth.Contract(abi, AddressJpyc);
+			c.methods.approve(AddressContract, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
+				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+			});
+			c = new w.eth.Contract(abi, AddressImpermax);
+			c.methods.approve(AddressContract, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
+				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+			});
+		});
+	});
+}
+function f3(){
+	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
+		let w = new Web3(window.ethereum);
+		w.eth.getAccounts().then(function(a){
+			let abi = [
+				{
+					inputs : [
+						{
+							name : "amountInJpyc",
+							type : "uint256"
+						},
+						{
+							name : "amountOfImpermax",
+							type : "uint256"
+						}
+					],
+					name : "pay",
+					outputs : [],
+					type : "function"
+				}
+			];
+			let c = new w.eth.Contract(abi, AddressContract);
+			c.methods.pay(parseInt(document.getElementById("price").value) + "000000000000000000", document.getElementById("impermax").checked ? parseInt(document.getElementById("price").value) + "000000000000000000" : "0").send({from : a[0], gas : 500000}).then(function(x){
+				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+			});
+		});
+	});
+}
+function f4(){
+	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
+		let w = new Web3(window.ethereum);
+		w.eth.getAccounts().then(function(a){
+			let abi = [
+				{
+					inputs : [
+						{
+							name : "_implementation",
+							type : "address"
+						}
+					],
+					name : "updateImplementation",
+					outputs : [],
+					type : "function"
+				}
+			];
+			let c = new w.eth.Contract(abi, AddressContract);
+			c.methods.updateImplementation(document.getElementById("implementation").value).send({from : a[0], gas : 500000}).then(function(x){
+				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+			});
+		});
+	});
+}
+function f5(){
+	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
+		let w = new Web3(window.ethereum);
+		w.eth.getAccounts().then(function(a){
+			let abi = [
+				{
+					inputs : [],
+					name : "initialize",
+					outputs : [],
+					type : "function"
+				}
+			];
+			let c = new w.eth.Contract(abi, AddressContract);
+			c.methods.initialize().send({from : a[0], gas : 500000}).then(function(x){
+				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+			});
+		});
+	});
+}
+</script>
+</head>
+<body>
+価格（日本円）<input type="text" id="price" value="100">
+<form onsubmit="f1();return false;">
+<input type="submit" value="imxBトークンで見積もる">
+</form>
+<form onsubmit="f2();return false;">
+<input type="submit" value="MetaMaskに接続してトークンの送金を承認する">
+</form>
+<form onsubmit="f3();return false;">
+<input type="checkbox" id="impermax"><label for="impermax">imxBトークンで払う</label>
+<input type="submit" value="MetaMaskに接続して支払う">
+</form>
+<hr>
+実装アドレス<input type="text" id="implementation" value="0x70AE0a3B0e41D047dEeF0619685127B9F92c47Ca">
+<form onsubmit="f4();return false;">
+<input type="submit" value="MetaMaskに接続して実装を更新する（コントラクト作成者専用）">
+</form>
+<form onsubmit="f5();return false;">
+<input type="submit" value="MetaMaskに接続して実装を初期化する（コントラクト作成者専用）">
+</form>
+<span id="output"></span>
+</body>
+</html>
