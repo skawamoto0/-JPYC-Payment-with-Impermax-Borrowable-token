@@ -43,7 +43,9 @@ contract JpycPaymentWithImpermax {
         uint256 amountOfJpyc;
         require(amountInJpyc <= limit * (10 ** j.decimals()));
         require(amountOfImpermax <= limit * (10 ** i.decimals()));
-        amountOfJpyc = amountInJpyc - (amountOfImpermax * i.exchangeRateLast() / (10 ** i.decimals())) * (10 ** j.decimals()) / (10 ** i.decimals());
+        unchecked {
+            amountOfJpyc = amountInJpyc - (amountOfImpermax * i.exchangeRateLast() / (10 ** i.decimals())) * (10 ** j.decimals()) / (10 ** i.decimals());
+        }
         if(amountOfImpermax >= getJpycPriceInImpermax(amountInJpyc)) {
             amountOfImpermax = getJpycPriceInImpermax(amountInJpyc);
             amountOfJpyc = 0;
