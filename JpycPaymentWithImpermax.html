@@ -6,7 +6,6 @@
 <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
 <script type="text/javascript">
 const RpcPolygon = "https://polygon-rpc.com/";
-const AddressContract = "0x8344AeD6233574801028c3c076A60233bfe1D60E";
 const AddressJpyc = "0x6AE7Dfc73E0dDE2aa99ac063DcF7e8A63265108c";
 const AddressImpermax = "0xDB36fA27166b011Be6a6aa17AAAf6B4117453274";
 function f1(){
@@ -29,7 +28,7 @@ function f1(){
 			type : "function"
 		}
 	];
-	let c = new w.eth.Contract(abi, AddressContract);
+	let c = new w.eth.Contract(abi, document.getElementById("contract").value);
 	c.methods.getJpycPriceInImpermax(parseInt(document.getElementById("price").value) + "000000000000000000").call().then(function(x){
 		document.getElementById("output").innerText += parseInt(document.getElementById("price").value) + "円はimxBトークン" + x + "個\n";
 	});
@@ -61,11 +60,11 @@ function f2(){
 				}
 			];
 			let c = new w.eth.Contract(abi, AddressJpyc);
-			c.methods.approve(AddressContract, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
+			c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
 				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
 			});
 			c = new w.eth.Contract(abi, AddressImpermax);
-			c.methods.approve(AddressContract, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
+			c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
 				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
 			});
 		});
@@ -92,7 +91,7 @@ function f3(){
 					type : "function"
 				}
 			];
-			let c = new w.eth.Contract(abi, AddressContract);
+			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
 			c.methods.pay(parseInt(document.getElementById("price").value) + "000000000000000000", document.getElementById("impermax").checked ? parseInt(document.getElementById("price").value) + "000000000000000000" : "0").send({from : a[0], gas : 500000}).then(function(x){
 				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
 			});
@@ -116,7 +115,7 @@ function f4(){
 					type : "function"
 				}
 			];
-			let c = new w.eth.Contract(abi, AddressContract);
+			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
 			c.methods.updateImplementation(document.getElementById("implementation").value).send({from : a[0], gas : 500000}).then(function(x){
 				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
 			});
@@ -135,7 +134,7 @@ function f5(){
 					type : "function"
 				}
 			];
-			let c = new w.eth.Contract(abi, AddressContract);
+			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
 			c.methods.initialize().send({from : a[0], gas : 500000}).then(function(x){
 				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
 			});
@@ -145,7 +144,10 @@ function f5(){
 </script>
 </head>
 <body>
-価格（日本円）<input type="text" id="price" value="100">
+コントラクトアドレス<br>
+<input type="text" id="contract" value="0x8344AeD6233574801028c3c076A60233bfe1D60E"><br>
+価格（日本円）<br>
+<input type="text" id="price" value="100">
 <form onsubmit="f1();return false;">
 <input type="submit" value="imxBトークンで見積もる">
 </form>
@@ -157,7 +159,8 @@ function f5(){
 <input type="submit" value="MetaMaskに接続して支払う">
 </form>
 <hr>
-実装アドレス<input type="text" id="implementation" value="0x5F2a249a146F638a9A98A7435cadE7Bc6E03D115">
+実装アドレス<br>
+<input type="text" id="implementation" value="0x5a0bAC5e7a1582dC060dE54C5D5aCcC914801BbA">
 <form onsubmit="f4();return false;">
 <input type="submit" value="MetaMaskに接続して実装を更新する（コントラクト作成者専用）">
 </form>
