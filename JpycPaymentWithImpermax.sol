@@ -18,6 +18,7 @@ interface IImpermax is IErc20 {
 
 interface IImpermaxRouter {
     function mint(address, uint256, address, uint256) external returns(uint256);
+    function redeem(address, uint256, address, uint256, bytes memory) external returns(uint256);
 }
 
 contract JpycPaymentWithImpermax {
@@ -27,6 +28,8 @@ contract JpycPaymentWithImpermax {
     uint256 public limit;
     address public router;
     uint256 public tolerance;
+    bool public mint;
+    bool public redeem;
     function initialize() public {
         require(owner == address(0));
         owner = msg.sender;
@@ -35,19 +38,28 @@ contract JpycPaymentWithImpermax {
         limit = 100000;
         router = 0x7C79A1c2152665273ebD50e9E88d92A887a83BA0;
         tolerance = 100000000000000;
+        mint = true;
+        redeem = false;
     }
-    function update(address _jpyc, address _impermax, uint256 _limit, address _router, uint256 _tolerance) public {
+    function update(address _jpyc, address _impermax, uint256 _limit, address _router, uint256 _tolerance, bool _mint, bool _redeem) public {
         require(msg.sender == owner);
         jpyc = _jpyc;
         impermax = _impermax;
         limit = _limit;
         router = _router;
         tolerance = _tolerance;
+        mint = _mint;
+        redeem = _redeem;
     }
     function getJpycPriceInImpermax(uint256 amount) public view returns(uint256) {
         IJpyc j = IJpyc(jpyc);
         IImpermax i = IImpermax(impermax);
-        return (amount * (10 ** i.decimals()) / i.exchangeRateLast()) * (10 ** j.decimals()) / (10 ** i.decimals());
+        return (amount * (10 ** i.decimals()) / i.exchangeRateLast()) * (10 ** i.decimals()) / (10 ** j.decimals());
+    }
+    function getImpermaxPriceInJpyc(uint256 amount) public view returns(uint256) {
+        IJpyc j = IJpyc(jpyc);
+        IImpermax i = IImpermax(impermax);
+        return (amount * i.exchangeRateLast() / (10 ** i.decimals())) * (10 ** j.decimals()) / (10 ** i.decimals());
     }
     function pay(uint256 amountInJpyc, uint256 amountOfImpermax) public {
         IJpyc j = IJpyc(jpyc);
@@ -56,14 +68,24 @@ contract JpycPaymentWithImpermax {
         require(amountInJpyc <= limit * (10 ** j.decimals()));
         require(amountOfImpermax <= limit * (10 ** i.decimals()));
         unchecked {
-            amountOfJpyc = amountInJpyc - (amountOfImpermax * i.exchangeRateLast() / (10 ** i.decimals())) * (10 ** j.decimals()) / (10 ** i.decimals());
+            amountOfJpyc = amountInJpyc - getImpermaxPriceInJpyc(amountOfImpermax);
         }
         if(amountOfImpermax >= getJpycPriceInImpermax(amountInJpyc)) {
             amountOfImpermax = getJpycPriceInImpermax(amountInJpyc);
             amountOfJpyc = 0;
         }
-        _convertAndTransfer(amountOfJpyc);
-        _transfer(impermax, amountOfImpermax);
+        if(mint) {
+            _mintAndTransfer(amountOfJpyc);
+        }
+        else {
+            _transfer(jpyc, amountOfJpyc);
+        }
+        if(redeem) {
+            _redeemAndTransfer(amountOfImpermax);
+        }
+        else {
+            _transfer(impermax, amountOfImpermax);
+        }
     }
     function _transfer(address token, uint256 amount) internal {
         IErc20 e = IErc20(token);
@@ -75,22 +97,40 @@ contract JpycPaymentWithImpermax {
             require(e.balanceOf(owner) - balanceOld == amount);
         }
     }
-    function _convertAndTransfer(uint256 amountInJpyc) internal {
+    function _mintAndTransfer(uint256 amountOfJpyc) internal {
         IJpyc j = IJpyc(jpyc);
         IImpermax i = IImpermax(impermax);
         IImpermaxRouter r = IImpermaxRouter(router);
         uint256 balanceOld;
         uint256 amountOfImpermax;
-        if(amountInJpyc > 0) {
-            j.transferFrom(msg.sender, address(this), amountInJpyc);
-            j.approve(router, amountInJpyc);
+        if(amountOfJpyc > 0) {
+            j.transferFrom(msg.sender, address(this), amountOfJpyc);
+            j.approve(router, amountOfJpyc);
             balanceOld = i.balanceOf(address(this));
-            r.mint(impermax, amountInJpyc, address(this), block.timestamp);
-            require(i.balanceOf(address(this)) - balanceOld >= getJpycPriceInImpermax(amountInJpyc) * (1000000000000000000 - tolerance) / 1000000000000000000);
+            r.mint(impermax, amountOfJpyc, address(this), block.timestamp);
+            require(i.balanceOf(address(this)) - balanceOld >= getJpycPriceInImpermax(amountOfJpyc) * (1000000000000000000 - tolerance) / 1000000000000000000);
             amountOfImpermax = i.balanceOf(address(this));
             balanceOld = i.balanceOf(owner);
             i.transfer(owner, amountOfImpermax);
             require(i.balanceOf(owner) - balanceOld == amountOfImpermax);
+        }
+    }
+    function _redeemAndTransfer(uint256 amountOfImpermax) internal {
+        IJpyc j = IJpyc(jpyc);
+        IImpermax i = IImpermax(impermax);
+        IImpermaxRouter r = IImpermaxRouter(router);
+        uint256 balanceOld;
+        uint256 amountOfJpyc;
+        if(amountOfImpermax > 0) {
+            i.transferFrom(msg.sender, address(this), amountOfImpermax);
+            i.approve(router, amountOfImpermax);
+            balanceOld = j.balanceOf(address(this));
+            r.redeem(impermax, amountOfImpermax, address(this), block.timestamp, "");
+            require(j.balanceOf(address(this)) - balanceOld >= getImpermaxPriceInJpyc(amountOfImpermax) * (1000000000000000000 - tolerance) / 1000000000000000000);
+            amountOfJpyc = j.balanceOf(address(this));
+            balanceOld = j.balanceOf(owner);
+            j.transfer(owner, amountOfJpyc);
+            require(j.balanceOf(owner) - balanceOld == amountOfJpyc);
         }
     }
 }
