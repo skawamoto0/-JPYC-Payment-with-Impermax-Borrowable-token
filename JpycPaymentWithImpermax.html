@@ -8,6 +8,32 @@
 const RpcPolygon = "https://polygon-rpc.com/";
 const AddressJpyc = "0x6AE7Dfc73E0dDE2aa99ac063DcF7e8A63265108c";
 const AddressImpermax = "0xDB36fA27166b011Be6a6aa17AAAf6B4117453274";
+function Get(url){
+	return new Promise(function(a, b){
+		let x = new XMLHttpRequest();
+		x.onload = function(){
+			if(x.status == 200){
+				a(x.response);
+			}else{
+				b(x.status);
+			}
+		};
+		x.onerror = function(){
+			b(null);
+		}
+		x.open("GET", url);
+		x.send();
+	});
+}
+function GetPolygonGasPrice(){
+	return new Promise(function(a, b){
+		Get("https://gasstation-mainnet.matic.network/").then(function(x){
+			a(JSON.parse(x).standard + "000000000");
+		}, function(x){
+			a("0");
+		});
+	});
+}
 function f1(){
 	let w = new Web3(RpcPolygon);
 	let abi = [
@@ -35,108 +61,126 @@ function f1(){
 }
 function f2(){
 	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
-		let w = new Web3(window.ethereum);
-		w.eth.getAccounts().then(function(a){
-			let abi = [
-				{
-					inputs : [
-						{
-							name : "",
-							type : "address"
-						},
-						{
-							name : "",
-							type : "uint256"
-						}
-					],
-					name : "approve",
-					outputs : [
-						{
-							name : "",
-							type : "bool"
-						}
-					],
-					type : "function"
-				}
-			];
-			let c = new w.eth.Contract(abi, AddressJpyc);
-			c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
-				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
-			});
-			c = new w.eth.Contract(abi, AddressImpermax);
-			c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000}).then(function(x){
-				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+		window.ethereum.request({method : "wallet_switchEthereumChain", params : [{chainId : "0x89"}]}).then(function(x){
+			let w = new Web3(window.ethereum);
+			w.eth.getAccounts().then(function(a){
+				let abi = [
+					{
+						inputs : [
+							{
+								name : "",
+								type : "address"
+							},
+							{
+								name : "",
+								type : "uint256"
+							}
+						],
+						name : "approve",
+						outputs : [
+							{
+								name : "",
+								type : "bool"
+							}
+						],
+						type : "function"
+					}
+				];
+				let c = new w.eth.Contract(abi, AddressJpyc);
+				GetPolygonGasPrice().then(function(x){
+					c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000, gasPrice : x}).then(function(x){
+						document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+					});
+				});
+				GetPolygonGasPrice().then(function(x){
+					c = new w.eth.Contract(abi, AddressImpermax);
+					c.methods.approve(document.getElementById("contract").value, "100000000000000000000000").send({from : a[0], gas : 100000, gasPrice : x}).then(function(x){
+						document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+					});
+				});
 			});
 		});
 	});
 }
 function f3(){
 	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
-		let w = new Web3(window.ethereum);
-		w.eth.getAccounts().then(function(a){
-			let abi = [
-				{
-					inputs : [
-						{
-							name : "amountInJpyc",
-							type : "uint256"
-						},
-						{
-							name : "amountOfImpermax",
-							type : "uint256"
-						}
-					],
-					name : "pay",
-					outputs : [],
-					type : "function"
-				}
-			];
-			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
-			c.methods.pay(parseInt(document.getElementById("price").value) + "000000000000000000", document.getElementById("impermax").checked ? parseInt(document.getElementById("price").value) + "000000000000000000" : "0").send({from : a[0], gas : 500000}).then(function(x){
-				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+		window.ethereum.request({method : "wallet_switchEthereumChain", params : [{chainId : "0x89"}]}).then(function(x){
+			let w = new Web3(window.ethereum);
+			w.eth.getAccounts().then(function(a){
+				let abi = [
+					{
+						inputs : [
+							{
+								name : "amountInJpyc",
+								type : "uint256"
+							},
+							{
+								name : "amountOfImpermax",
+								type : "uint256"
+							}
+						],
+						name : "pay",
+						outputs : [],
+						type : "function"
+					}
+				];
+				let c = new w.eth.Contract(abi, document.getElementById("contract").value);
+				GetPolygonGasPrice().then(function(x){
+					c.methods.pay(parseInt(document.getElementById("price").value) + "000000000000000000", document.getElementById("impermax").checked ? parseInt(document.getElementById("price").value) + "000000000000000000" : "0").send({from : a[0], gas : 500000, gasPrice : x}).then(function(x){
+						document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+					});
+				});
 			});
 		});
 	});
 }
 function f4(){
 	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
-		let w = new Web3(window.ethereum);
-		w.eth.getAccounts().then(function(a){
-			let abi = [
-				{
-					inputs : [
-						{
-							name : "_implementation",
-							type : "address"
-						}
-					],
-					name : "updateImplementation",
-					outputs : [],
-					type : "function"
-				}
-			];
-			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
-			c.methods.updateImplementation(document.getElementById("implementation").value).send({from : a[0], gas : 500000}).then(function(x){
-				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+		window.ethereum.request({method : "wallet_switchEthereumChain", params : [{chainId : "0x89"}]}).then(function(x){
+			let w = new Web3(window.ethereum);
+			w.eth.getAccounts().then(function(a){
+				let abi = [
+					{
+						inputs : [
+							{
+								name : "_implementation",
+								type : "address"
+							}
+						],
+						name : "updateImplementation",
+						outputs : [],
+						type : "function"
+					}
+				];
+				let c = new w.eth.Contract(abi, document.getElementById("contract").value);
+				GetPolygonGasPrice().then(function(x){
+					c.methods.updateImplementation(document.getElementById("implementation").value).send({from : a[0], gas : 500000, gasPrice : x}).then(function(x){
+						document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+					});
+				});
 			});
 		});
 	});
 }
 function f5(){
 	window.ethereum.request({method : "eth_requestAccounts"}).then(function(x){
-		let w = new Web3(window.ethereum);
-		w.eth.getAccounts().then(function(a){
-			let abi = [
-				{
-					inputs : [],
-					name : "initialize",
-					outputs : [],
-					type : "function"
-				}
-			];
-			let c = new w.eth.Contract(abi, document.getElementById("contract").value);
-			c.methods.initialize().send({from : a[0], gas : 500000}).then(function(x){
-				document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+		window.ethereum.request({method : "wallet_switchEthereumChain", params : [{chainId : "0x89"}]}).then(function(x){
+			let w = new Web3(window.ethereum);
+			w.eth.getAccounts().then(function(a){
+				let abi = [
+					{
+						inputs : [],
+						name : "initialize",
+						outputs : [],
+						type : "function"
+					}
+				];
+				let c = new w.eth.Contract(abi, document.getElementById("contract").value);
+				GetPolygonGasPrice().then(function(x){
+					c.methods.initialize().send({from : a[0], gas : 500000, gasPrice : x}).then(function(x){
+						document.getElementById("output").innerText += "トランザクションハッシュ" + x.transactionHash + "\n";
+					});
+				});
 			});
 		});
 	});
